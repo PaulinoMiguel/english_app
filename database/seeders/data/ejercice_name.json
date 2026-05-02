@@ -1,0 +1,42 @@
+[
+  {
+    "numero": 1,
+    "nombre": "Listen and Read"
+  },
+  {
+    "numero": 2,
+    "nombre": "Multichoice in English"
+  },
+  {
+    "numero": 3,
+    "nombre": "Multichoice in Translation"
+  },
+  {
+    "numero": 4,
+    "nombre": "Match Wold and Definition"
+  },
+  {
+    "numero": 5,
+    "nombre": "HangMan"
+  },
+  {
+    "numero": 6,
+    "nombre": "Complete Story"
+  },
+  {
+    "numero": 7,
+    "nombre": "Write"
+  },
+  {
+    "numero": 8,
+    "nombre": "Read"
+  },
+  {
+    "numero": 9,
+    "nombre": "Organize Definiton"
+  },
+  {
+    "numero": 10,
+    "nombre": "Organize Example"
+  }
+]

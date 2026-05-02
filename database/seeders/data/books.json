@@ -1,0 +1,44 @@
+[
+  {
+    "bookId": 1,
+    "title": "Basic English",
+    "level": "Beginner",
+    "description": "Fundamentos del inglés para principiantes absolutos",
+    "totalUnits": 30
+  },
+  {
+    "bookId": 2,
+    "title": "Elementary English",
+    "level": "Elementary",
+    "description": "Inglés elemental para construir bases sólidas",
+    "totalUnits": 30
+  },
+  {
+    "bookId": 3,
+    "title": "Pre-Intermediate English",
+    "level": "Pre-Intermediate",
+    "description": "Preparación para nivel intermedio",
+    "totalUnits": 30
+  },
+  {
+    "bookId": 4,
+    "title": "Intermediate English",
+    "level": "Intermediate",
+    "description": "Inglés intermedio para conversación fluida",
+    "totalUnits": 30
+  },
+  {
+    "bookId": 5,
+    "title": "Upper-Intermediate English",
+    "level": "Upper-Intermediate",
+    "description": "Inglés avanzado intermedio",
+    "totalUnits": 30
+  },
+  {
+    "bookId": 6,
+    "title": "Advanced English",
+    "level": "Advanced",
+    "description": "Inglés avanzado para dominio completo",
+    "totalUnits": 30
+  }
+]
