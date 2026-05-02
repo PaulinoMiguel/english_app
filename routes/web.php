@@ -6,7 +6,9 @@ use App\Http\Controllers\UnitController;
 use Illuminate\Support\Facades\Route;
 use Livewire\Volt\Volt;
 
-Route::view('/', 'welcome');
+Route::get('/', function () {
+    return redirect(auth()->check() ? route('dashboard') : route('login'));
+});
 
 Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('dashboard', [BookController::class, 'index'])->name('dashboard');
