@@ -287,7 +287,7 @@ new #[Layout('layouts.app')] class extends Component
                         </p>
 
                         {{-- Story body --}}
-                        <div class="text-base sm:text-lg leading-loose text-gray-800 dark:text-gray-200 mb-6">
+                        <div class="text-base sm:text-lg leading-loose text-gray-800 dark:text-gray-200 mb-6 pb-40 sm:pb-0">
                             @php
                                 $slotCounter = 0;
                             @endphp
@@ -336,9 +336,9 @@ new #[Layout('layouts.app')] class extends Component
                             @endforeach
                         </div>
 
-                        {{-- Bank --}}
+                        {{-- Bank: sticky bottom on mobile, normal flow on desktop --}}
                         @if (! $answered || ! $allCorrect)
-                            <div class="border-t border-gray-200 dark:border-gray-700 pt-4">
+                            <div class="sticky bottom-0 sm:relative -mx-5 sm:mx-0 -mb-5 sm:mb-0 z-20 sm:z-auto bg-white/95 dark:bg-gray-800/95 sm:bg-transparent backdrop-blur sm:backdrop-blur-none border-t border-gray-200 dark:border-gray-700 shadow-[0_-8px_24px_rgba(0,0,0,0.08)] sm:shadow-none px-5 sm:px-0 py-3 sm:py-0 sm:pt-4 max-h-[40vh] sm:max-h-none overflow-y-auto sm:overflow-visible">
                                 <div class="flex items-center justify-between mb-2">
                                     <p class="text-xs uppercase tracking-wide font-semibold text-gray-500 dark:text-gray-400">
                                         Palabras disponibles ({{ count($bankTexts) - count($this->usedBankIndices) }})
