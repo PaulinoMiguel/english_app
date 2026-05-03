@@ -278,16 +278,18 @@ new #[Layout('layouts.app')] class extends Component
                     </div>
                 </div>
 
-                <div class="relative bg-white dark:bg-gray-800 rounded-2xl shadow-md border border-gray-200 dark:border-gray-700 overflow-hidden">
+                <div class="relative bg-white dark:bg-gray-800 rounded-2xl shadow-md border border-gray-200 dark:border-gray-700 overflow-hidden flex flex-col h-[calc(100dvh-180px)] sm:h-auto sm:block">
                     <div class="absolute top-0 left-0 right-0 h-1.5 {{ $palette['accent'] }}"></div>
-                    <div class="p-5 sm:p-6">
+
+                    {{-- Top: hint + story (scrollable on mobile) --}}
+                    <div class="flex-1 min-h-0 overflow-y-auto sm:overflow-visible p-5 sm:p-6 sm:pb-0">
 
                         <p class="text-xs uppercase tracking-wide font-semibold {{ $palette['text'] }} mb-3">
                             Lee el cuento y rellena los huecos
                         </p>
 
                         {{-- Story body --}}
-                        <div class="text-base sm:text-lg leading-loose text-gray-800 dark:text-gray-200 mb-6 pb-40 sm:pb-0">
+                        <div class="text-base sm:text-lg leading-loose text-gray-800 dark:text-gray-200 sm:mb-6">
                             @php
                                 $slotCounter = 0;
                             @endphp
@@ -335,10 +337,15 @@ new #[Layout('layouts.app')] class extends Component
                                 @endif
                             @endforeach
                         </div>
+                    </div>
+                    {{-- /scrollable top --}}
 
-                        {{-- Bank: sticky bottom on mobile, normal flow on desktop --}}
+                    {{-- Bottom: bank + actions (fixed-size on mobile, normal on desktop) --}}
+                    <div class="shrink-0 sm:shrink p-5 pt-3 sm:p-6 sm:pt-0 border-t sm:border-t-0 border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 max-h-[55vh] sm:max-h-none overflow-y-auto sm:overflow-visible">
+
+                        {{-- Bank --}}
                         @if (! $answered || ! $allCorrect)
-                            <div class="sticky bottom-0 sm:relative -mx-5 sm:mx-0 -mb-5 sm:mb-0 z-20 sm:z-auto bg-white/95 dark:bg-gray-800/95 sm:bg-transparent backdrop-blur sm:backdrop-blur-none border-t border-gray-200 dark:border-gray-700 shadow-[0_-8px_24px_rgba(0,0,0,0.08)] sm:shadow-none px-5 sm:px-0 py-3 sm:py-0 sm:pt-4 max-h-[40vh] sm:max-h-none overflow-y-auto sm:overflow-visible">
+                            <div class="sm:border-t sm:border-gray-200 dark:sm:border-gray-700 sm:pt-4">
                                 <div class="flex items-center justify-between mb-2">
                                     <p class="text-xs uppercase tracking-wide font-semibold text-gray-500 dark:text-gray-400">
                                         Palabras disponibles ({{ count($bankTexts) - count($this->usedBankIndices) }})
