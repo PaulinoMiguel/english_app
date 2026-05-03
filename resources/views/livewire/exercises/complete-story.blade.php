@@ -71,7 +71,7 @@ new #[Layout('layouts.app')] class extends Component
         $this->slotExpected = $coreTexts;
 
         $bank = $coreTexts;
-        shuffle($bank);
+        sort($bank, SORT_FLAG_CASE | SORT_STRING); // alphabetical, case-insensitive
         $this->bankTexts = $bank;
 
         $this->placements = array_fill(0, count($coreTexts), null);
