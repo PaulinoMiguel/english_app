@@ -55,7 +55,9 @@ class BookController extends Controller
         foreach ($units as $unit) {
             $availability[$unit->id] = [
                 'available' => $service->isUnitAvailable($userId, $unit->id),
+                'hours_until' => $service->hoursUntilAvailable($userId, $unit->id),
                 'days_until' => $service->daysUntilAvailable($userId, $unit->id),
+                'label' => $service->timeUntilAvailableLabel($userId, $unit->id),
                 'next_review' => $service->nextReviewDate($userId, $unit->id),
             ];
         }

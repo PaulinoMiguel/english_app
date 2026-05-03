@@ -120,19 +120,26 @@ class ProgressService
     }
 
     /**
-     * Calcula los días necesarios entre revisiones según la fórmula exponencial:
-     *     daysNeeded = ceil( pow(repetitionCount, 1.6) )
-     * (equivalente a: hoursNeeded = pow(reps, 1.6) * 24, days = hoursNeeded / 24)
+     * Horas necesarias entre revisiones según la fórmula exponencial:
+     *     hoursNeeded = ceil( pow(repetitionCount, 1.6) * 24 )
+     */
+    public function hoursNeededForReps(int $repetitionCount): int
+    {
+        $reps = max($repetitionCount, 1);
+        return (int) ceil(pow($reps, 1.6) * 24);
+    }
+
+    /**
+     * Días equivalentes (para mostrar "X días" en la UI).
      */
     public function daysNeededForReps(int $repetitionCount): int
     {
-        $reps = max($repetitionCount, 1);
-        return (int) ceil(pow($reps, 1.6));
+        return (int) ceil($this->hoursNeededForReps($repetitionCount) / 24);
     }
 
     /**
      * ¿Está disponible esta unidad según spaced repetition?
-     * Disponible si: nunca revisada, mid-cycle (algunos ejercicios hechos), o cooldown elapsed.
+     * Disponible si: nunca revisada, mid-cycle, o han pasado las horas suficientes.
      */
     public function isUnitAvailable(int $userId, int $unitId): bool
     {
@@ -155,17 +162,16 @@ class ProgressService
             return true;
         }
 
-        $daysNeeded = $this->daysNeededForReps($progress->repetition_count);
-        $daysSinceReview = (int) abs($progress->last_review->startOfDay()->diffInDays(now()->startOfDay(), false));
+        $hoursNeeded = $this->hoursNeededForReps($progress->repetition_count);
+        $hoursSinceReview = (int) floor((float) $progress->last_review->diffInHours(now()));
 
-        return $daysSinceReview >= $daysNeeded;
+        return $hoursSinceReview >= $hoursNeeded;
     }
 
     /**
-     * Días que faltan para que la unidad esté disponible para revisar de nuevo.
-     * Devuelve 0 si ya está disponible.
+     * Horas que faltan para que la unidad esté disponible. 0 si ya lo está.
      */
-    public function daysUntilAvailable(int $userId, int $unitId): int
+    public function hoursUntilAvailable(int $userId, int $unitId): int
     {
         if ($this->isUnitAvailable($userId, $unitId)) return 0;
 
@@ -175,10 +181,33 @@ class ProgressService
 
         if ($progress === null || $progress->last_review === null) return 0;
 
-        $daysNeeded = $this->daysNeededForReps($progress->repetition_count);
-        $daysSinceReview = (int) abs($progress->last_review->startOfDay()->diffInDays(now()->startOfDay(), false));
+        $hoursNeeded = $this->hoursNeededForReps($progress->repetition_count);
+        $hoursSinceReview = (int) floor((float) $progress->last_review->diffInHours(now()));
 
-        return max(0, $daysNeeded - $daysSinceReview);
+        return max(0, $hoursNeeded - $hoursSinceReview);
+    }
+
+    /**
+     * Días que faltan, redondeados hacia arriba. 0 si ya está disponible.
+     */
+    public function daysUntilAvailable(int $userId, int $unitId): int
+    {
+        $hours = $this->hoursUntilAvailable($userId, $unitId);
+        return $hours === 0 ? 0 : (int) ceil($hours / 24);
+    }
+
+    /**
+     * Texto humano del tiempo que falta: "5 horas", "2 días", etc.
+     */
+    public function timeUntilAvailableLabel(int $userId, int $unitId): string
+    {
+        $hours = $this->hoursUntilAvailable($userId, $unitId);
+        if ($hours === 0) return '';
+        if ($hours < 24) {
+            return $hours === 1 ? 'vuelve en 1 hora' : "vuelve en {$hours} horas";
+        }
+        $days = (int) ceil($hours / 24);
+        return $days === 1 ? 'vuelve mañana' : "vuelve en {$days} días";
     }
 
     /**

@@ -15,13 +15,10 @@ class UnitController extends Controller
         $userId = auth()->id();
 
         if (! $service->isUnitAvailable($userId, $unit->id)) {
-            $days = $service->daysUntilAvailable($userId, $unit->id);
-            $msg = $days === 1
-                ? 'Esta unidad vuelve a estar disponible mañana.'
-                : "Esta unidad vuelve a estar disponible en {$days} días.";
+            $label = $service->timeUntilAvailableLabel($userId, $unit->id);
             return redirect()
                 ->route('books.show', $unit->book_id)
-                ->with('flash_message', $msg);
+                ->with('flash_message', "Esta unidad está en descanso — {$label}.");
         }
 
         $unit->load(['book', 'words']);

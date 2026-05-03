@@ -165,7 +165,7 @@
                                 <div class="flex-1 min-w-0">
                                     <h3 class="font-semibold text-gray-900 dark:text-gray-100 truncate">{{ $unit->title }}</h3>
                                     <p class="text-xs font-medium text-blue-700 dark:text-blue-300 mt-0.5">
-                                        En descanso · {{ $avail['days_until'] === 1 ? 'vuelve mañana' : 'vuelve en '.$avail['days_until'].' días' }}
+                                        En descanso · {{ $avail['label'] }}
                                     </p>
                                 </div>
                             </div>
