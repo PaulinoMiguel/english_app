@@ -246,8 +246,9 @@ new #[Layout('layouts.app')] class extends Component
                             a.onended = () => { this.markDone(key); this.playSequence(rest); };
                             a.play().catch(() => { this.markDone(key); this.playSequence(rest); });
                         },
-                     }"
-                     class="relative bg-white dark:bg-gray-800 rounded-2xl shadow-md border border-gray-200 dark:border-gray-700 overflow-hidden">
+                     }">
+
+                <div class="relative bg-white dark:bg-gray-800 rounded-2xl shadow-md border border-gray-200 dark:border-gray-700 overflow-hidden">
                     <div class="absolute top-0 left-0 right-0 h-1.5 {{ $palette['accent'] }}"></div>
 
                     {{-- Hidden audio elements. @ended marks played; markDone notifies server when all 3 done. --}}
@@ -279,30 +280,6 @@ new #[Layout('layouts.app')] class extends Component
                             </div>
                             @if ($word->translation)
                                 <p class="text-base text-gray-700 dark:text-gray-300">{{ $word->translation }}</p>
-                            @endif
-
-                            @if ($word->audio_file)
-                                <div class="mt-4">
-                                    <button type="button"
-                                            @click="playAll()"
-                                            class="inline-flex items-center gap-2 px-5 py-2.5 rounded-full {{ $palette['accent'] }} text-white font-medium hover:opacity-90 active:scale-95 transition shadow-md">
-                                        <svg x-show="stage === null" xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                                            <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z" clip-rule="evenodd" />
-                                        </svg>
-                                        <svg x-show="stage !== null" xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor" style="display:none;">
-                                            <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM7 9a1 1 0 011-1h4a1 1 0 011 1v2a1 1 0 01-1 1H8a1 1 0 01-1-1V9z" clip-rule="evenodd" />
-                                        </svg>
-                                        <span x-text="stage === null ? 'Escuchar palabra' : (stage === 'word' ? 'Reproduciendo palabra…' : (stage === 'def' ? 'Reproduciendo definición…' : 'Reproduciendo ejemplo…'))">Escuchar palabra</span>
-                                    </button>
-                                    <p class="text-[11px] text-gray-500 dark:text-gray-400 mt-2">
-                                        Palabra
-                                        <span x-show="playedWord" class="text-emerald-600 dark:text-emerald-400 font-semibold">✓</span>
-                                        · Definición
-                                        <span x-show="playedDef" class="text-emerald-600 dark:text-emerald-400 font-semibold">✓</span>
-                                        · Ejemplo
-                                        <span x-show="playedEx" class="text-emerald-600 dark:text-emerald-400 font-semibold">✓</span>
-                                    </p>
-                                </div>
                             @endif
                         </div>
 
@@ -354,8 +331,32 @@ new #[Layout('layouts.app')] class extends Component
                     </div>
                 </div>
 
-                {{-- Navigation buttons --}}
+                {{-- Bottom action area: play button just above nav so the thumb can reach both --}}
                 <div class="mt-5">
+                    @if ($word->audio_file)
+                        <div class="text-center mb-4">
+                            <button type="button"
+                                    @click="playAll()"
+                                    class="inline-flex items-center gap-2 px-6 py-3 rounded-full {{ $palette['accent'] }} text-white font-semibold hover:opacity-90 active:scale-95 transition shadow-md">
+                                <svg x-show="stage === null" xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                                    <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z" clip-rule="evenodd" />
+                                </svg>
+                                <svg x-show="stage !== null" xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor" style="display:none;">
+                                    <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM7 9a1 1 0 011-1h4a1 1 0 011 1v2a1 1 0 01-1 1H8a1 1 0 01-1-1V9z" clip-rule="evenodd" />
+                                </svg>
+                                <span x-text="stage === null ? 'Escuchar palabra' : (stage === 'word' ? 'Reproduciendo palabra…' : (stage === 'def' ? 'Reproduciendo definición…' : 'Reproduciendo ejemplo…'))">Escuchar palabra</span>
+                            </button>
+                            <p class="text-[11px] text-gray-500 dark:text-gray-400 mt-2">
+                                Palabra
+                                <span x-show="playedWord" class="text-emerald-600 dark:text-emerald-400 font-semibold">✓</span>
+                                · Definición
+                                <span x-show="playedDef" class="text-emerald-600 dark:text-emerald-400 font-semibold">✓</span>
+                                · Ejemplo
+                                <span x-show="playedEx" class="text-emerald-600 dark:text-emerald-400 font-semibold">✓</span>
+                            </p>
+                        </div>
+                    @endif
+
                     @if (! $unlocked)
                         <p class="text-xs text-center text-amber-700 dark:text-amber-400 mb-3 font-medium">
                             Escucha los 3 audios para avanzar.
@@ -384,6 +385,7 @@ new #[Layout('layouts.app')] class extends Component
                             </svg>
                         </button>
                     </div>
+                </div>
                 </div>
             @endif
         </div>
