@@ -283,9 +283,9 @@ new #[Layout('layouts.app')] class extends Component
                 </div>
 
                 <div wire:key="hm-{{ $word->id }}"
-                     class="relative bg-white dark:bg-gray-800 rounded-2xl shadow-md border border-gray-200 dark:border-gray-700 overflow-hidden">
-                    <div class="absolute top-0 left-0 right-0 h-1.5 {{ $palette['accent'] }}"></div>
-                    <div class="p-5 sm:p-6">
+                     class="relative bg-white dark:bg-gray-800 rounded-2xl shadow-md border border-gray-200 dark:border-gray-700 overflow-hidden flex flex-col min-h-[calc(100dvh-180px)] sm:min-h-0">
+                    <div class="absolute top-0 left-0 right-0 h-1.5 {{ $palette['accent'] }} z-10"></div>
+                    <div class="flex-1 overflow-y-auto p-5 sm:p-6 pb-2 sm:pb-6">
 
                         {{-- Lives display --}}
                         <div class="flex items-center justify-center gap-1.5 mb-5">
@@ -353,9 +353,12 @@ new #[Layout('layouts.app')] class extends Component
                             </div>
                         @endif
 
-                        {{-- Keyboard (QWERTY): edge-to-edge on mobile --}}
+                    </div>
+
+                    {{-- Keyboard / next button — anchored to bottom on mobile --}}
+                    <div class="shrink-0 px-1 pt-2 pb-2 sm:px-6 sm:pt-0 sm:pb-6 border-t border-gray-100 dark:border-gray-700 sm:border-t-0">
                         @if ($status === 'playing')
-                            <div class="-mx-5 sm:mx-0 px-1 sm:px-0 space-y-1 sm:space-y-2">
+                            <div class="space-y-1 sm:space-y-2">
                                 @foreach (['QWERTYUIOP', 'ASDFGHJKL', 'ZXCVBNM'] as $row)
                                     <div class="flex justify-center gap-0.5 sm:gap-1.5">
                                         @foreach (str_split($row) as $letter)

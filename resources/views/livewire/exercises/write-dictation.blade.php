@@ -276,28 +276,28 @@ new #[Layout('layouts.app')] class extends Component
                         </div>
 
                         {{-- Display of current input --}}
-                        <div class="space-y-3">
+                        <div class="space-y-3"
+                            @if (! $answered)
+                                x-data
+                                @keydown.window="
+                                    if ($event.target.tagName === 'INPUT' || $event.target.tagName === 'TEXTAREA') return;
+                                    if (/^[a-zA-Z]$/.test($event.key)) { $wire.addLetter($event.key); $event.preventDefault(); }
+                                    else if ($event.key === 'Backspace') { $wire.backspace(); $event.preventDefault(); }
+                                    else if ($event.key === 'Enter') { $wire.submit(); $event.preventDefault(); }
+                                "
+                            @endif
+                        >
                             <p class="text-xs uppercase tracking-wide font-semibold text-gray-600 dark:text-gray-300">Tu respuesta</p>
-                            <div
-                                @if (! $answered)
-                                    x-data
-                                    @keydown.window="
-                                        if ($event.target.tagName === 'INPUT' || $event.target.tagName === 'TEXTAREA') return;
-                                        if (/^[a-zA-Z]$/.test($event.key)) { $wire.addLetter($event.key); $event.preventDefault(); }
-                                        else if ($event.key === 'Backspace') { $wire.backspace(); $event.preventDefault(); }
-                                        else if ($event.key === 'Enter') { $wire.submit(); $event.preventDefault(); }
-                                    "
-                                @endif
-                                class="w-full min-h-[58px] px-4 py-3 rounded-lg border-2 text-2xl font-bold tracking-wider text-center transition-all
-                                    @if ($answered)
-                                        @if ($isCorrect)
-                                            border-emerald-500 bg-emerald-50 dark:bg-emerald-900/30 text-emerald-800 dark:text-emerald-200
-                                        @else
-                                            border-rose-500 bg-rose-50 dark:bg-rose-900/30 text-rose-800 dark:text-rose-200
-                                        @endif
+                            <div class="w-full min-h-[58px] px-4 py-3 rounded-lg border-2 text-2xl font-bold tracking-wider text-center transition-all
+                                @if ($answered)
+                                    @if ($isCorrect)
+                                        border-emerald-500 bg-emerald-50 dark:bg-emerald-900/30 text-emerald-800 dark:text-emerald-200
                                     @else
-                                        border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100
-                                    @endif">
+                                        border-rose-500 bg-rose-50 dark:bg-rose-900/30 text-rose-800 dark:text-rose-200
+                                    @endif
+                                @else
+                                    border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100
+                                @endif">
                                 @if ($userInput === '')
                                     <span class="text-base font-normal text-gray-400 dark:text-gray-500 italic">Toca las letras de abajo…</span>
                                 @else
@@ -306,34 +306,76 @@ new #[Layout('layouts.app')] class extends Component
                             </div>
                         </div>
 
-                        {{-- Custom QWERTY keyboard --}}
+                        {{-- Custom QWERTY keyboard (WhatsApp-style) --}}
                         @if (! $answered)
                             <div class="-mx-5 sm:mx-0 px-1 sm:px-0 mt-4 space-y-1 sm:space-y-1.5">
-                                @foreach (['qwertyuiop', 'asdfghjkl', 'zxcvbnm'] as $row)
-                                    <div class="flex justify-center gap-0.5 sm:gap-1">
-                                        @foreach (str_split($row) as $letter)
-                                            <button type="button"
-                                                    wire:click="addLetter('{{ $letter }}')"
-                                                    class="flex-1 min-w-0 h-12 sm:h-14 rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-800 dark:text-gray-100 font-bold text-base sm:text-lg active:bg-indigo-100 dark:active:bg-indigo-900/40 active:scale-95 transition shadow-sm">
-                                                {{ strtoupper($letter) }}
-                                            </button>
-                                        @endforeach
-                                    </div>
-                                @endforeach
-                                <div class="flex justify-center gap-0.5 sm:gap-1 pt-1">
+                                {{-- Row 1: qwertyuiop --}}
+                                <div class="flex justify-center gap-0.5 sm:gap-1">
+                                    @foreach (str_split('qwertyuiop') as $letter)
+                                        <button type="button"
+                                                wire:click="addLetter('{{ $letter }}')"
+                                                class="flex-1 min-w-0 h-12 sm:h-14 rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-800 dark:text-gray-100 font-bold text-base sm:text-lg active:bg-indigo-100 dark:active:bg-indigo-900/40 active:scale-95 transition shadow-sm">
+                                            {{ strtoupper($letter) }}
+                                        </button>
+                                    @endforeach
+                                </div>
+                                {{-- Row 2: asdfghjkl --}}
+                                <div class="flex justify-center gap-0.5 sm:gap-1">
+                                    @foreach (str_split('asdfghjkl') as $letter)
+                                        <button type="button"
+                                                wire:click="addLetter('{{ $letter }}')"
+                                                class="flex-1 min-w-0 h-12 sm:h-14 rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-800 dark:text-gray-100 font-bold text-base sm:text-lg active:bg-indigo-100 dark:active:bg-indigo-900/40 active:scale-95 transition shadow-sm">
+                                            {{ strtoupper($letter) }}
+                                        </button>
+                                    @endforeach
+                                </div>
+                                {{-- Row 3: zxcvbnm + backspace --}}
+                                <div class="flex justify-center gap-0.5 sm:gap-1">
+                                    @foreach (str_split('zxcvbnm') as $letter)
+                                        <button type="button"
+                                                wire:click="addLetter('{{ $letter }}')"
+                                                class="flex-1 min-w-0 h-12 sm:h-14 rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-800 dark:text-gray-100 font-bold text-base sm:text-lg active:bg-indigo-100 dark:active:bg-indigo-900/40 active:scale-95 transition shadow-sm">
+                                            {{ strtoupper($letter) }}
+                                        </button>
+                                    @endforeach
                                     <button type="button"
                                             wire:click="backspace"
-                                            class="flex-[1.5] min-w-0 h-12 sm:h-14 rounded-md border border-gray-300 dark:border-gray-600 bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-100 font-semibold text-sm active:bg-rose-100 dark:active:bg-rose-900/40 active:scale-95 transition shadow-sm flex items-center justify-center gap-1">
-                                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                                            <path fill-rule="evenodd" d="M2 5a2 2 0 012-2h12a2 2 0 012 2v10a2 2 0 01-2 2H4a2 2 0 01-2-2V5zm3.293 4.293a1 1 0 011.414 0L8 10.586l1.293-1.293a1 1 0 011.414 1.414L9.414 12l1.293 1.293a1 1 0 01-1.414 1.414L8 13.414l-1.293 1.293a1 1 0 01-1.414-1.414L6.586 12 5.293 10.707a1 1 0 010-1.414z" clip-rule="evenodd" />
+                                            @disabled($userInput === '')
+                                            aria-label="Borrar letra"
+                                            class="flex-[1.5] min-w-0 h-12 sm:h-14 rounded-md border border-gray-300 dark:border-gray-600 bg-gray-100 dark:bg-gray-600 text-gray-700 dark:text-gray-200 active:bg-rose-100 dark:active:bg-rose-900/40 active:scale-95 transition shadow-sm flex items-center justify-center disabled:opacity-40">
+                                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 sm:h-6 sm:w-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                            <path d="M21 4H8l-7 8 7 8h13a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2z"/>
+                                            <line x1="18" y1="9" x2="12" y2="15"/>
+                                            <line x1="12" y1="9" x2="18" y2="15"/>
                                         </svg>
-                                        Borrar
+                                    </button>
+                                </div>
+                                {{-- Row 4: shift (no-op) + space (no-op) + enter (submit) --}}
+                                <div class="flex justify-center gap-0.5 sm:gap-1">
+                                    <button type="button"
+                                            disabled
+                                            aria-hidden="true"
+                                            tabindex="-1"
+                                            class="flex-[2] min-w-0 h-12 sm:h-14 rounded-md border border-gray-300 dark:border-gray-600 bg-gray-100 dark:bg-gray-600 text-gray-500 dark:text-gray-400 shadow-sm flex items-center justify-center cursor-default opacity-70">
+                                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                            <polyline points="18 15 12 9 6 15"/>
+                                        </svg>
+                                    </button>
+                                    <button type="button"
+                                            disabled
+                                            aria-hidden="true"
+                                            tabindex="-1"
+                                            class="flex-[3] min-w-0 h-12 sm:h-14 rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-400 dark:text-gray-500 shadow-sm cursor-default opacity-70">
                                     </button>
                                     <button type="button"
                                             wire:click="submit"
                                             @disabled(trim($userInput) === '')
-                                            class="flex-[2] min-w-0 h-12 sm:h-14 rounded-md font-bold text-sm sm:text-base shadow-sm transition active:scale-95 {{ trim($userInput) === '' ? 'bg-gray-300 dark:bg-gray-600 text-gray-500 dark:text-gray-400 cursor-not-allowed' : $palette['accent'].' text-white hover:opacity-90' }}">
-                                        Comprobar
+                                            aria-label="Comprobar"
+                                            class="flex-[2] min-w-0 h-12 sm:h-14 rounded-md font-bold text-sm shadow-sm transition active:scale-95 flex items-center justify-center gap-1 {{ trim($userInput) === '' ? 'bg-gray-300 dark:bg-gray-600 text-gray-500 dark:text-gray-400 cursor-not-allowed' : $palette['accent'].' text-white hover:opacity-90' }}">
+                                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                                            <polyline points="9 10 4 15 9 20"/>
+                                            <path d="M20 4v7a4 4 0 0 1-4 4H4"/>
+                                        </svg>
                                     </button>
                                 </div>
                             </div>
