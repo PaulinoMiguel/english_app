@@ -3,6 +3,7 @@
 use App\Models\Unit;
 use App\Models\Word;
 use App\Services\ProgressService;
+use App\Services\WordMasteryService;
 use Illuminate\Support\Collection;
 use Livewire\Attributes\Computed;
 use Livewire\Attributes\Layout;
@@ -10,6 +11,8 @@ use Livewire\Volt\Component;
 
 new #[Layout('layouts.app')] class extends Component
 {
+    public const EXERCISE_NUMBER = 4;
+
     public Unit $unit;
 
     /** @var array<int> All word IDs in the exercise */
@@ -36,11 +39,12 @@ new #[Layout('layouts.app')] class extends Component
 
     public bool $finished = false;
 
-    public function mount(Unit $unit): void
+    public function mount(Unit $unit, WordMasteryService $masterySvc): void
     {
         $this->unit = $unit->load('book', 'words');
 
-        $words = $this->unit->words->filter(fn ($w) => ! empty($w->definition));
+        $activeIds = $masterySvc->activeWordsForUnit(auth()->id(), $this->unit)->pluck('id')->all();
+        $words = $this->unit->words->filter(fn ($w) => ! empty($w->definition) && in_array($w->id, $activeIds, true));
 
         if ($words->count() < 2) {
             $this->finished = true;
@@ -87,7 +91,7 @@ new #[Layout('layouts.app')] class extends Component
         return preg_replace('/\b'.preg_quote($w->text, '/').'\w*/iu', $mask, $w->definition);
     }
 
-    public function selectFrom(string $column, int $wordId): void
+    public function selectFrom(string $column, int $wordId, WordMasteryService $masterySvc): void
     {
         if ($this->finished) return;
         if (! in_array($column, ['word', 'def'], true)) return;
@@ -116,6 +120,10 @@ new #[Layout('layouts.app')] class extends Component
             $this->correct++;
         } else {
             $this->wrong++;
+            // Both words were involved in a wrong match — fault both. Unique constraint
+            // makes the call idempotent within the same cycle.
+            $masterySvc->recordExerciseFault(auth()->id(), $this->unit, $wordIdSelected, self::EXERCISE_NUMBER);
+            $masterySvc->recordExerciseFault(auth()->id(), $this->unit, $defWordId, self::EXERCISE_NUMBER);
         }
 
         $this->selectedId = null;

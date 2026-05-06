@@ -3,6 +3,7 @@
 use App\Models\StoryWord;
 use App\Models\Unit;
 use App\Services\ProgressService;
+use App\Services\WordMasteryService;
 use Illuminate\Support\Collection;
 use Livewire\Attributes\Computed;
 use Livewire\Attributes\Layout;
@@ -10,6 +11,8 @@ use Livewire\Volt\Component;
 
 new #[Layout('layouts.app')] class extends Component
 {
+    public const EXERCISE_NUMBER = 6;
+
     public Unit $unit;
 
     /** @var array<int, string> Tokens of the full story in order (text per token) */
@@ -39,9 +42,12 @@ new #[Layout('layouts.app')] class extends Component
 
     public bool $finished = false;
 
-    public function mount(Unit $unit): void
+    /** @var array<string, int> map of lowercased text → word_id (for fault recording) */
+    public array $textToWordId = [];
+
+    public function mount(Unit $unit, WordMasteryService $masterySvc): void
     {
-        $this->unit = $unit->load('book');
+        $this->unit = $unit->load('book', 'words');
 
         $story = StoryWord::where('unit_id', $unit->id)->orderBy('order')->get();
 
@@ -50,13 +56,20 @@ new #[Layout('layouts.app')] class extends Component
             return;
         }
 
+        // Active words for this user. Only their texts become slots + bank items.
+        // Known words still appear in the story as plain text (context preserved).
+        $activeWords = $masterySvc->activeWordsForUnit(auth()->id(), $this->unit);
+        $activeTextSet = $activeWords->pluck('text')->map(fn ($t) => mb_strtolower($t))->all();
+        $this->textToWordId = $this->unit->words->mapWithKeys(fn ($w) => [mb_strtolower($w->text) => $w->id])->all();
+
         $tokens = [];
         $flags = [];
         $coreTexts = [];
         foreach ($story as $sw) {
             $tokens[] = $sw->text;
-            $flags[] = (bool) $sw->is_core;
-            if ($sw->is_core) {
+            $isActiveCore = (bool) $sw->is_core && in_array(mb_strtolower($sw->text), $activeTextSet, true);
+            $flags[] = $isActiveCore;
+            if ($isActiveCore) {
                 $coreTexts[] = $sw->text;
             }
         }
@@ -141,7 +154,7 @@ new #[Layout('layouts.app')] class extends Component
         $this->selectedBankIndex = null;
     }
 
-    public function submit(): void
+    public function submit(WordMasteryService $masterySvc): void
     {
         if ($this->answered || ! $this->isComplete) return;
 
@@ -153,6 +166,10 @@ new #[Layout('layouts.app')] class extends Component
             $expected = $this->slotExpected[$slotIndex] ?? '';
             if ($given !== $expected) {
                 $allCorrect = false;
+                $wordId = $this->textToWordId[mb_strtolower($expected)] ?? null;
+                if ($wordId !== null) {
+                    $masterySvc->recordExerciseFault(auth()->id(), $this->unit, $wordId, self::EXERCISE_NUMBER);
+                }
             }
         }
 

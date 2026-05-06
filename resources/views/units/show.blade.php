@@ -51,6 +51,21 @@
                 </div>
             @endif
 
+            @if (session('flash_message'))
+                <div x-data="{ show: true }" x-show="show" x-init="setTimeout(() => show = false, 5000)"
+                     class="flex items-center gap-3 p-4 rounded-lg bg-amber-50 dark:bg-amber-900/30 border border-amber-200 dark:border-amber-800 text-amber-800 dark:text-amber-200">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="shrink-0 h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                        <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h.01a1 1 0 100-2H10V9z" clip-rule="evenodd" />
+                    </svg>
+                    <span class="text-sm font-medium">{{ session('flash_message') }}</span>
+                    <button @click="show = false" class="ml-auto shrink-0 text-amber-600 dark:text-amber-400 hover:text-amber-800 dark:hover:text-amber-200">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                            <path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd" />
+                        </svg>
+                    </button>
+                </div>
+            @endif
+
             {{-- Summary card --}}
             <div class="relative bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden">
                 <div class="absolute top-0 left-0 right-0 h-1.5 {{ $palette['accent'] }}"></div>
@@ -105,17 +120,18 @@
                             5 => ['name' => 'units.exercises.hangman', 'enabled' => true],
                             6 => ['name' => 'units.exercises.complete-story', 'enabled' => true],
                             7 => ['name' => 'units.exercises.write', 'enabled' => true],
-                            8 => ['name' => 'units.exercises.read', 'enabled' => true],
-                            9 => ['name' => 'units.exercises.organize-definition', 'enabled' => true],
-                            10 => ['name' => 'units.exercises.organize-example', 'enabled' => true],
+                            8 => ['name' => 'units.exercises.organize-definition', 'enabled' => true],
+                            9 => ['name' => 'units.exercises.organize-example', 'enabled' => true],
+                            10 => ['name' => 'units.exercises.read', 'enabled' => true],
                         ];
                     @endphp
                     @foreach ($exerciseTypes as $type)
                         @php
                             $done = in_array($type->number, $completed, true);
                             $route = $exerciseRoutes[$type->number] ?? null;
-                            $enabled = $route['enabled'] ?? false;
                             $optional = in_array($type->number, $optionalExercises, true);
+                            $gated = $type->number === 10 && ! $done && ! ($canStartRead ?? false);
+                            $enabled = ($route['enabled'] ?? false) && ! $gated;
                             $href = $enabled ? route($route['name'], $unit) : null;
                             $tag = $enabled ? 'a' : 'div';
                         @endphp
@@ -147,6 +163,8 @@
                             <span class="shrink-0 text-xs font-medium {{ $done ? 'text-emerald-700 dark:text-emerald-300' : ($enabled ? ($optional ? 'text-amber-700 dark:text-amber-300' : 'text-indigo-700 dark:text-indigo-300') : 'text-gray-500 dark:text-gray-400') }}">
                                 @if ($done)
                                     Completado
+                                @elseif ($gated)
+                                    Bloqueado
                                 @elseif ($enabled)
                                     Empezar →
                                 @else
@@ -157,7 +175,7 @@
                     @endforeach
                     @if (count($optionalExercises) > 0)
                         <p class="sm:col-span-2 text-xs text-amber-700 dark:text-amber-400 italic px-1 mt-1">
-                            Desde tu repetición #{{ \App\Services\ProgressService::OPTIONAL_FROM_REPS }}, los ejercicios Organize son opcionales — completa los 8 primeros para registrar la repetición.
+                            Desde tu repetición #{{ \App\Services\ProgressService::OPTIONAL_FROM_REPS }}, los ejercicios Organize son opcionales — completa los obligatorios para registrar la repetición.
                         </p>
                     @endif
                 </div>

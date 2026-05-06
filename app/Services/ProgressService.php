@@ -13,7 +13,7 @@ class ProgressService
     public const REPETITIONS_TO_MASTER = 10;
 
     /**
-     * Reps at and above which exercises 9 (Organize Definition) and 10 (Organize Example)
+     * Reps at and above which exercises 8 (Organize Definition) and 9 (Organize Example)
      * become optional — the user can complete a cycle without them.
      */
     public const OPTIONAL_FROM_REPS = 5;
@@ -22,19 +22,45 @@ class ProgressService
      * Returns the list of exercise numbers required to mark a unit cycle as completed,
      * given the user's current repetition count for that unit.
      *
+     * Exercises 8 and 9 (Organize Definition / Example) become optional from
+     * OPTIONAL_FROM_REPS onwards. Read (10) is always required and serves as
+     * the gating exercise for marking words as known.
+     *
      * @return array<int>
      */
     public function requiredExercises(int $repetitionCount): array
     {
         if ($repetitionCount >= self::OPTIONAL_FROM_REPS) {
-            return [1, 2, 3, 4, 5, 6, 7, 8];
+            return [1, 2, 3, 4, 5, 6, 7, 10];
         }
         return [1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
     }
 
     public function isExerciseOptional(int $exerciseNumber, int $repetitionCount): bool
     {
-        return $repetitionCount >= self::OPTIONAL_FROM_REPS && in_array($exerciseNumber, [9, 10], true);
+        return $repetitionCount >= self::OPTIONAL_FROM_REPS && in_array($exerciseNumber, [8, 9], true);
+    }
+
+    /**
+     * Read (10) is the gating exercise — it can only be started once the user
+     * has completed every other required exercise for the current cycle. This
+     * lets Read serve as the moment to mark words as known with confidence.
+     */
+    public function canStartRead(int $userId, int $unitId): bool
+    {
+        $progress = UnitProgress::where('user_id', $userId)
+            ->where('unit_id', $unitId)
+            ->first();
+
+        $repetition = $progress?->repetition_count ?? 0;
+        $completed = $progress?->exercises_completed ?? [];
+
+        $required = $this->requiredExercises($repetition);
+        foreach ($required as $n) {
+            if ($n === 10) continue;
+            if (! in_array($n, $completed, true)) return false;
+        }
+        return true;
     }
 
     public function getOrCreate(int $userId, int $unitId): UnitProgress

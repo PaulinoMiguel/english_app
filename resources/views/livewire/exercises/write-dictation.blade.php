@@ -3,6 +3,7 @@
 use App\Models\Unit;
 use App\Models\Word;
 use App\Services\ProgressService;
+use App\Services\WordMasteryService;
 use Illuminate\Support\Collection;
 use Livewire\Attributes\Computed;
 use Livewire\Attributes\Layout;
@@ -10,6 +11,8 @@ use Livewire\Volt\Component;
 
 new #[Layout('layouts.app')] class extends Component
 {
+    public const EXERCISE_NUMBER = 7;
+
     public Unit $unit;
 
     /** @var array<int> Word IDs in processing order; failed words get appended */
@@ -34,9 +37,13 @@ new #[Layout('layouts.app')] class extends Component
 
     public bool $finished = false;
 
-    public function mount(Unit $unit): void
+    /** @var array<int> */
+    public array $activeWordIds = [];
+
+    public function mount(Unit $unit, WordMasteryService $masterySvc): void
     {
         $this->unit = $unit->load('book', 'words');
+        $this->activeWordIds = $masterySvc->activeWordsForUnit(auth()->id(), $this->unit)->pluck('id')->all();
 
         if ($this->words->isEmpty()) {
             $this->finished = true;
@@ -50,7 +57,9 @@ new #[Layout('layouts.app')] class extends Component
     #[Computed]
     public function words(): Collection
     {
-        return $this->unit->words->filter(fn ($w) => ! empty($w->audio_file))->values();
+        return $this->unit->words
+            ->filter(fn ($w) => ! empty($w->audio_file) && in_array($w->id, $this->activeWordIds, true))
+            ->values();
     }
 
     #[Computed]
@@ -100,7 +109,7 @@ new #[Layout('layouts.app')] class extends Component
         $this->userInput = '';
     }
 
-    public function submit(): void
+    public function submit(WordMasteryService $masterySvc): void
     {
         if ($this->answered) return;
 
@@ -120,6 +129,7 @@ new #[Layout('layouts.app')] class extends Component
             }
         } else {
             $this->wrong++;
+            $masterySvc->recordExerciseFault(auth()->id(), $this->unit, $w->id, self::EXERCISE_NUMBER);
             // Re-queue the word so the user has to retry it later
             $this->queue[] = $w->id;
         }

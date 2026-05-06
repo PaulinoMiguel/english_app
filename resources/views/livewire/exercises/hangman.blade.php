@@ -3,6 +3,7 @@
 use App\Models\Unit;
 use App\Models\Word;
 use App\Services\ProgressService;
+use App\Services\WordMasteryService;
 use Illuminate\Support\Collection;
 use Livewire\Attributes\Computed;
 use Livewire\Attributes\Layout;
@@ -11,6 +12,7 @@ use Livewire\Volt\Component;
 new #[Layout('layouts.app')] class extends Component
 {
     public const MAX_WRONG = 6;
+    public const EXERCISE_NUMBER = 5;
 
     public Unit $unit;
 
@@ -29,9 +31,13 @@ new #[Layout('layouts.app')] class extends Component
 
     public bool $finished = false;
 
-    public function mount(Unit $unit): void
+    /** @var array<int> */
+    public array $activeWordIds = [];
+
+    public function mount(Unit $unit, WordMasteryService $masterySvc): void
     {
         $this->unit = $unit->load('book', 'words');
+        $this->activeWordIds = $masterySvc->activeWordsForUnit(auth()->id(), $this->unit)->pluck('id')->all();
 
         if ($this->words->isEmpty()) {
             $this->finished = true;
@@ -44,7 +50,9 @@ new #[Layout('layouts.app')] class extends Component
     #[Computed]
     public function words(): Collection
     {
-        return $this->unit->words->filter(fn ($w) => preg_match('/^[a-zA-Z]{3,}$/', $w->text))->values();
+        return $this->unit->words
+            ->filter(fn ($w) => preg_match('/^[a-zA-Z]{3,}$/', $w->text) && in_array($w->id, $this->activeWordIds, true))
+            ->values();
     }
 
     #[Computed]
@@ -98,7 +106,7 @@ new #[Layout('layouts.app')] class extends Component
         $this->status = 'playing';
     }
 
-    public function guess(string $letter): void
+    public function guess(string $letter, WordMasteryService $masterySvc): void
     {
         if ($this->status !== 'playing') return;
 
@@ -132,6 +140,9 @@ new #[Layout('layouts.app')] class extends Component
                 $this->lost++;
                 // Reveal all letters
                 $this->guessed = array_unique(array_merge($this->guessed, $target));
+                if ($w) {
+                    $masterySvc->recordExerciseFault(auth()->id(), $this->unit, $w->id, self::EXERCISE_NUMBER);
+                }
             }
         }
     }

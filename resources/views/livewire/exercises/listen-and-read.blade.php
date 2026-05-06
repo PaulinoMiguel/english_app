@@ -3,6 +3,7 @@
 use App\Models\Unit;
 use App\Models\Word;
 use App\Services\ProgressService;
+use App\Services\WordMasteryService;
 use Illuminate\Support\Collection;
 use Livewire\Attributes\Computed;
 use Livewire\Attributes\Layout;
@@ -18,11 +19,15 @@ new #[Layout('layouts.app')] class extends Component
 
     public bool $unlocked = false;
 
-    public function mount(Unit $unit): void
+    /** @var array<int> Word IDs still active for this user (not currently known) */
+    public array $activeWordIds = [];
+
+    public function mount(Unit $unit, WordMasteryService $masterySvc): void
     {
         $this->unit = $unit->load('book', 'words');
+        $this->activeWordIds = $masterySvc->activeWordsForUnit(auth()->id(), $this->unit)->pluck('id')->all();
 
-        if ($this->unit->words->isEmpty()) {
+        if ($this->words->isEmpty()) {
             $this->finished = true;
         }
     }
@@ -47,7 +52,7 @@ new #[Layout('layouts.app')] class extends Component
     #[Computed]
     public function words(): Collection
     {
-        return $this->unit->words;
+        return $this->unit->words->filter(fn ($w) => in_array($w->id, $this->activeWordIds, true))->values();
     }
 
     #[Computed]

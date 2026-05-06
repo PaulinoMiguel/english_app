@@ -3,6 +3,7 @@
 use App\Models\Unit;
 use App\Models\Word;
 use App\Services\ProgressService;
+use App\Services\WordMasteryService;
 use Illuminate\Support\Collection;
 use Livewire\Attributes\Computed;
 use Livewire\Attributes\Layout;
@@ -10,6 +11,8 @@ use Livewire\Volt\Component;
 
 new #[Layout('layouts.app')] class extends Component
 {
+    public const EXERCISE_NUMBER = 8;
+
     public Unit $unit;
 
     /** @var array<int> Word IDs in queue (failed words re-queued) */
@@ -40,9 +43,13 @@ new #[Layout('layouts.app')] class extends Component
 
     public bool $finished = false;
 
-    public function mount(Unit $unit): void
+    /** @var array<int> */
+    public array $activeWordIds = [];
+
+    public function mount(Unit $unit, WordMasteryService $masterySvc): void
     {
         $this->unit = $unit->load('book', 'words');
+        $this->activeWordIds = $masterySvc->activeWordsForUnit(auth()->id(), $this->unit)->pluck('id')->all();
 
         if ($this->words->isEmpty()) {
             $this->finished = true;
@@ -59,6 +66,7 @@ new #[Layout('layouts.app')] class extends Component
     {
         return $this->unit->words->filter(function ($w) {
             if (empty($w->definition)) return false;
+            if (! in_array($w->id, $this->activeWordIds, true)) return false;
             $count = count($this->tokenize($w->definition));
             return $count >= 3 && $count <= 14;
         })->values();
@@ -125,7 +133,7 @@ new #[Layout('layouts.app')] class extends Component
         return (int) round(($this->masteredCount / $this->totalUnique) * 100);
     }
 
-    public function placeToken(int $tokenIndex): void
+    public function placeToken(int $tokenIndex, WordMasteryService $masterySvc): void
     {
         if ($this->answered) return;
         if (! isset($this->tokens[$tokenIndex])) return;
@@ -135,7 +143,7 @@ new #[Layout('layouts.app')] class extends Component
 
         // Auto-check when complete
         if (count($this->placedIndices) === count($this->tokens)) {
-            $this->check();
+            $this->check($masterySvc);
         }
     }
 
@@ -155,7 +163,7 @@ new #[Layout('layouts.app')] class extends Component
         $this->wrongAttempt = false;
     }
 
-    private function check(): void
+    private function check(WordMasteryService $masterySvc): void
     {
         // Validate by exact text — duplicate identical tokens are interchangeable, but case matters
         $tokens = $this->tokens;
@@ -176,6 +184,9 @@ new #[Layout('layouts.app')] class extends Component
             // Don't lock — user can fix the answer and try again
             $this->wrongAttempt = true;
             $this->wrong++;
+            if ($w) {
+                $masterySvc->recordExerciseFault(auth()->id(), $this->unit, $w->id, self::EXERCISE_NUMBER);
+            }
         }
     }
 
@@ -211,7 +222,7 @@ new #[Layout('layouts.app')] class extends Component
 
     public function complete(ProgressService $service): void
     {
-        $service->markExerciseCompleted(auth()->id(), $this->unit->id, 9);
+        $service->markExerciseCompleted(auth()->id(), $this->unit->id, 8);
 
         session()->flash('exercise_completed', '¡Ejercicio "Organize Definition" completado!');
         $this->redirect(route('units.show', $this->unit), navigate: true);

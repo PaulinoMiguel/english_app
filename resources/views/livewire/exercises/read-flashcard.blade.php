@@ -1,8 +1,11 @@
 <?php
 
+use App\Models\CycleWordFault;
 use App\Models\Unit;
+use App\Models\UnitProgress;
 use App\Models\Word;
 use App\Services\ProgressService;
+use App\Services\WordMasteryService;
 use Illuminate\Support\Collection;
 use Livewire\Attributes\Computed;
 use Livewire\Attributes\Layout;
@@ -10,17 +13,25 @@ use Livewire\Volt\Component;
 
 new #[Layout('layouts.app')] class extends Component
 {
+    public const EXERCISE_NUMBER = 10;
+
     public Unit $unit;
 
-    /** @var array<int> Word IDs in queue order; failed cards get re-queued */
+    /** @var array<int> Word IDs in queue order; "no lo sé" cards get re-queued */
     public array $queue = [];
 
     public int $position = 0;
 
     public int $totalUnique = 0;
 
-    /** @var array<int> Word IDs already known */
-    public array $knownIds = [];
+    /** @var array<int> Word IDs marked "lo sé" during this session — persisted on complete() */
+    public array $markedKnownIds = [];
+
+    /** @var array<int> Word IDs the user faulted in earlier exercises this cycle (cannot be marked known) */
+    public array $faultedWordIds = [];
+
+    /** @var array<int> Active word IDs at session start (not currently known) */
+    public array $activeWordIds = [];
 
     public bool $revealed = false;
 
@@ -30,9 +41,29 @@ new #[Layout('layouts.app')] class extends Component
 
     public bool $finished = false;
 
-    public function mount(Unit $unit): void
+    public function mount(Unit $unit, ProgressService $service, WordMasteryService $masterySvc): void
     {
         $this->unit = $unit->load('book', 'words');
+
+        if (! $service->canStartRead(auth()->id(), $unit->id)) {
+            session()->flash('flash_message', 'Completa primero los demás ejercicios obligatorios para desbloquear Read.');
+            $this->redirect(route('units.show', $unit), navigate: true);
+            return;
+        }
+
+        $this->activeWordIds = $masterySvc->activeWordsForUnit(auth()->id(), $this->unit)->pluck('id')->all();
+
+        $rep = (int) (UnitProgress::where('user_id', auth()->id())
+            ->where('unit_id', $unit->id)
+            ->value('repetition_count') ?? 0);
+
+        $this->faultedWordIds = CycleWordFault::where('user_id', auth()->id())
+            ->where('unit_id', $unit->id)
+            ->where('repetition_count', $rep)
+            ->pluck('word_id')
+            ->unique()
+            ->values()
+            ->all();
 
         if ($this->words->isEmpty()) {
             $this->finished = true;
@@ -46,8 +77,17 @@ new #[Layout('layouts.app')] class extends Component
     #[Computed]
     public function words(): Collection
     {
-        // Only words with a definition (we mask it as the riddle)
-        return $this->unit->words->filter(fn ($w) => ! empty($w->definition))->values();
+        // Active + has definition (we mask it as the riddle)
+        return $this->unit->words
+            ->filter(fn ($w) => ! empty($w->definition) && in_array($w->id, $this->activeWordIds, true))
+            ->values();
+    }
+
+    public function canMarkCurrent(): bool
+    {
+        $w = $this->currentWord;
+        if (! $w) return false;
+        return ! in_array($w->id, $this->faultedWordIds, true);
     }
 
     #[Computed]
@@ -70,7 +110,7 @@ new #[Layout('layouts.app')] class extends Component
     #[Computed]
     public function knownCount(): int
     {
-        return count($this->knownIds);
+        return count($this->markedKnownIds);
     }
 
     #[Computed]
@@ -104,8 +144,11 @@ new #[Layout('layouts.app')] class extends Component
     {
         if (! $this->revealed) return;
         $w = $this->currentWord;
-        if ($w && ! in_array($w->id, $this->knownIds, true)) {
-            $this->knownIds[] = $w->id;
+        if (! $w) return;
+        // Server-side gate: words faulted earlier this cycle can't be marked known
+        if (in_array($w->id, $this->faultedWordIds, true)) return;
+        if (! in_array($w->id, $this->markedKnownIds, true)) {
+            $this->markedKnownIds[] = $w->id;
             $this->correct++;
         }
         $this->advance();
@@ -117,7 +160,7 @@ new #[Layout('layouts.app')] class extends Component
         $w = $this->currentWord;
         if ($w) {
             $this->wrong++;
-            $this->queue[] = $w->id; // re-queue at the end
+            $this->queue[] = $w->id; // re-queue at the end so the user sees it again
         }
         $this->advance();
     }
@@ -135,11 +178,27 @@ new #[Layout('layouts.app')] class extends Component
         }
     }
 
-    public function complete(ProgressService $service): void
+    public function complete(ProgressService $service, WordMasteryService $masterySvc): void
     {
-        $service->markExerciseCompleted(auth()->id(), $this->unit->id, 8);
+        // Read is the cycle's gating exercise: completing it increments rep_count
+        // (because all required exercises are now done). After that, persist the
+        // "lo sé" markings against the new rep so expiry windows are anchored
+        // to the cycle that just completed.
+        $service->markExerciseCompleted(auth()->id(), $this->unit->id, self::EXERCISE_NUMBER);
 
-        session()->flash('exercise_completed', '¡Ejercicio "Read" completado!');
+        $newRep = (int) (UnitProgress::where('user_id', auth()->id())
+            ->where('unit_id', $this->unit->id)
+            ->value('repetition_count') ?? 0);
+
+        foreach ($this->markedKnownIds as $wordId) {
+            $masterySvc->markKnown(auth()->id(), $wordId, $newRep);
+        }
+
+        $count = count($this->markedKnownIds);
+        $msg = $count > 0
+            ? '¡Read completado! Marcaste '.$count.' '.($count === 1 ? 'palabra' : 'palabras').' como conocidas.'
+            : '¡Read completado!';
+        session()->flash('exercise_completed', $msg);
         $this->redirect(route('units.show', $this->unit), navigate: true);
     }
 
@@ -323,7 +382,13 @@ new #[Layout('layouts.app')] class extends Component
 
                 {{-- Action buttons --}}
                 @if ($revealed)
-                    <div class="grid grid-cols-2 gap-3 mt-5">
+                    @php($canMark = $this->canMarkCurrent())
+                    @if (! $canMark)
+                        <p class="mt-4 text-xs text-center text-amber-700 dark:text-amber-400 font-medium">
+                            Fallaste esta palabra en otro ejercicio del ciclo — no podés marcarla como conocida hoy.
+                        </p>
+                    @endif
+                    <div class="grid grid-cols-2 gap-3 mt-3">
                         <button wire:click="didntKnow"
                                 class="inline-flex items-center justify-center gap-2 px-5 py-3 rounded-lg bg-rose-500 text-white font-semibold hover:bg-rose-600 active:scale-95 transition shadow-md">
                             <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
@@ -333,7 +398,8 @@ new #[Layout('layouts.app')] class extends Component
                         </button>
 
                         <button wire:click="knewIt"
-                                class="inline-flex items-center justify-center gap-2 px-5 py-3 rounded-lg bg-emerald-500 text-white font-semibold hover:bg-emerald-600 active:scale-95 transition shadow-md">
+                                @disabled(! $canMark)
+                                class="inline-flex items-center justify-center gap-2 px-5 py-3 rounded-lg font-semibold transition shadow-md {{ $canMark ? 'bg-emerald-500 text-white hover:bg-emerald-600 active:scale-95' : 'bg-gray-300 dark:bg-gray-600 text-gray-500 dark:text-gray-400 cursor-not-allowed' }}">
                             <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
                                 <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd" />
                             </svg>

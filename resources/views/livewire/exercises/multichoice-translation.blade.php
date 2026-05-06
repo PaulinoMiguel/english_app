@@ -3,6 +3,7 @@
 use App\Models\Unit;
 use App\Models\Word;
 use App\Services\ProgressService;
+use App\Services\WordMasteryService;
 use Illuminate\Support\Collection;
 use Livewire\Attributes\Computed;
 use Livewire\Attributes\Layout;
@@ -10,6 +11,8 @@ use Livewire\Volt\Component;
 
 new #[Layout('layouts.app')] class extends Component
 {
+    public const EXERCISE_NUMBER = 3;
+
     public Unit $unit;
 
     public int $currentIndex = 0;
@@ -27,12 +30,15 @@ new #[Layout('layouts.app')] class extends Component
     /** @var array<int, array<int>> */
     public array $optionsPerIndex = [];
 
-    public function mount(Unit $unit): void
+    /** @var array<int> */
+    public array $activeWordIds = [];
+
+    public function mount(Unit $unit, WordMasteryService $masterySvc): void
     {
         $this->unit = $unit->load('book', 'words');
+        $this->activeWordIds = $masterySvc->activeWordsForUnit(auth()->id(), $this->unit)->pluck('id')->all();
 
-        $withTranslation = $this->unit->words->filter(fn ($w) => ! empty($w->translation))->count();
-        if ($withTranslation < 2) {
+        if ($this->words->count() < 2) {
             $this->finished = true;
             return;
         }
@@ -42,9 +48,11 @@ new #[Layout('layouts.app')] class extends Component
 
     private function generateOptions(): void
     {
+        // Distractors come from any unit word with translation; questions only from active.
         $allWords = $this->unit->words->filter(fn ($w) => ! empty($w->translation))->pluck('id')->all();
         foreach ($this->unit->words as $i => $word) {
             if (empty($word->translation)) continue;
+            if (! in_array($word->id, $this->activeWordIds, true)) continue;
             $distractors = collect($allWords)->reject(fn ($id) => $id === $word->id)->shuffle()->take(3)->values()->all();
             $options = collect([$word->id, ...$distractors])->shuffle()->all();
             $this->optionsPerIndex[$i] = $options;
@@ -54,7 +62,9 @@ new #[Layout('layouts.app')] class extends Component
     #[Computed]
     public function words(): Collection
     {
-        return $this->unit->words->filter(fn ($w) => ! empty($w->translation))->values();
+        return $this->unit->words
+            ->filter(fn ($w) => ! empty($w->translation) && in_array($w->id, $this->activeWordIds, true))
+            ->values();
     }
 
     #[Computed]
@@ -86,7 +96,7 @@ new #[Layout('layouts.app')] class extends Component
         return $this->currentIndex >= $this->total - 1;
     }
 
-    public function answer(int $wordId): void
+    public function answer(int $wordId, WordMasteryService $masterySvc): void
     {
         if ($this->answered) return;
 
@@ -97,6 +107,7 @@ new #[Layout('layouts.app')] class extends Component
             $this->correct++;
         } else {
             $this->wrong++;
+            $masterySvc->recordExerciseFault(auth()->id(), $this->unit, $this->currentWord->id, self::EXERCISE_NUMBER);
         }
     }
 

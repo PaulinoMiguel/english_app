@@ -34,9 +34,11 @@ class UnitController extends Controller
 
         $optionalExercises = [];
         if ($progress->repetition_count >= ProgressService::OPTIONAL_FROM_REPS) {
-            $optionalExercises = [9, 10];
+            $optionalExercises = [8, 9];
         }
 
-        return view('units.show', compact('unit', 'progress', 'exerciseTypes', 'completed', 'optionalExercises'));
+        $canStartRead = $service->canStartRead($userId, $unit->id);
+
+        return view('units.show', compact('unit', 'progress', 'exerciseTypes', 'completed', 'optionalExercises', 'canStartRead'));
     }
 }
