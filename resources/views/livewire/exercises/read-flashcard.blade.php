@@ -83,11 +83,42 @@ new #[Layout('layouts.app')] class extends Component
             ->values();
     }
 
+    /**
+     * Cap on how many words can be graduated to "known" in a single cycle.
+     * Prevents a perfect-performance user from emptying the unit in one pass —
+     * mastery should be earned across multiple successful cycles.
+     */
+    public const MAX_MARKABLE_RATIO = 0.5;
+
+    #[Computed]
+    public function maxMarkable(): int
+    {
+        return max(1, (int) floor($this->totalUnique * self::MAX_MARKABLE_RATIO));
+    }
+
     public function canMarkCurrent(): bool
     {
         $w = $this->currentWord;
         if (! $w) return false;
-        return ! in_array($w->id, $this->faultedWordIds, true);
+        if (in_array($w->id, $this->faultedWordIds, true)) return false;
+        // Already marked is always still allowed (idempotent — clicking again advances)
+        if (in_array($w->id, $this->markedKnownIds, true)) return true;
+        // Cap on new markings per cycle
+        if (count($this->markedKnownIds) >= $this->maxMarkable) return false;
+        return true;
+    }
+
+    public function capReason(): string
+    {
+        $w = $this->currentWord;
+        if (! $w) return '';
+        if (in_array($w->id, $this->faultedWordIds, true)) {
+            return 'Fallaste esta palabra en otro ejercicio del ciclo — no podés marcarla como conocida hoy.';
+        }
+        if (! in_array($w->id, $this->markedKnownIds, true) && count($this->markedKnownIds) >= $this->maxMarkable) {
+            return 'Llegaste al máximo de palabras marcables en este ciclo ('.$this->maxMarkable.' de '.$this->totalUnique.'). El resto se gradúa en ciclos siguientes.';
+        }
+        return '';
     }
 
     #[Computed]
@@ -116,14 +147,14 @@ new #[Layout('layouts.app')] class extends Component
     #[Computed]
     public function remaining(): int
     {
-        return $this->totalUnique - $this->knownCount;
+        return max(0, $this->maxMarkable - $this->knownCount);
     }
 
     #[Computed]
     public function progressPercent(): int
     {
-        if ($this->totalUnique === 0) return 0;
-        return (int) round(($this->knownCount / $this->totalUnique) * 100);
+        if ($this->maxMarkable === 0) return 0;
+        return (int) round(($this->knownCount / $this->maxMarkable) * 100);
     }
 
     public function flip(): void
@@ -145,9 +176,10 @@ new #[Layout('layouts.app')] class extends Component
         if (! $this->revealed) return;
         $w = $this->currentWord;
         if (! $w) return;
-        // Server-side gate: words faulted earlier this cycle can't be marked known
+        // Server-side gates — must match canMarkCurrent()
         if (in_array($w->id, $this->faultedWordIds, true)) return;
         if (! in_array($w->id, $this->markedKnownIds, true)) {
+            if (count($this->markedKnownIds) >= $this->maxMarkable) return;
             $this->markedKnownIds[] = $w->id;
             $this->correct++;
         }
@@ -257,21 +289,26 @@ new #[Layout('layouts.app')] class extends Component
                             <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd" />
                         </svg>
                     </div>
-                    <h3 class="text-xl font-bold text-gray-900 dark:text-gray-100 mb-2">¡Te las sabes todas!</h3>
-                    <p class="text-gray-600 dark:text-gray-400 mb-4">Reconociste por su definición las {{ $totalUnique }} palabras de la unidad. Ya estás listo para Hangman.</p>
+                    <h3 class="text-xl font-bold text-gray-900 dark:text-gray-100 mb-2">¡Read completado!</h3>
+                    <p class="text-gray-600 dark:text-gray-400 mb-4">
+                        Marcaste {{ $this->knownCount }} {{ $this->knownCount === 1 ? 'palabra' : 'palabras' }} como conocidas
+                        @if ($this->maxMarkable < $totalUnique)
+                            (cap del 50% por ciclo)
+                        @endif. El resto vuelve a aparecer en el próximo ciclo.
+                    </p>
 
                     <div class="grid grid-cols-3 gap-3 max-w-md mx-auto my-6">
                         <div class="p-3 rounded-lg bg-emerald-50 dark:bg-emerald-900/30 ring-1 ring-emerald-200 dark:ring-emerald-800">
-                            <div class="text-2xl font-bold text-emerald-700 dark:text-emerald-300">{{ $correct }}</div>
-                            <div class="text-[10px] uppercase tracking-wide text-emerald-700/70 dark:text-emerald-400/70">Sabidas</div>
+                            <div class="text-2xl font-bold text-emerald-700 dark:text-emerald-300">{{ $this->knownCount }}</div>
+                            <div class="text-[10px] uppercase tracking-wide text-emerald-700/70 dark:text-emerald-400/70">Marcadas</div>
                         </div>
                         <div class="p-3 rounded-lg bg-rose-50 dark:bg-rose-900/30 ring-1 ring-rose-200 dark:ring-rose-800">
                             <div class="text-2xl font-bold text-rose-700 dark:text-rose-300">{{ $wrong }}</div>
                             <div class="text-[10px] uppercase tracking-wide text-rose-700/70 dark:text-rose-400/70">No sabidas</div>
                         </div>
                         <div class="p-3 rounded-lg {{ $palette['soft'] }} ring-1 ring-gray-200 dark:ring-gray-700">
-                            <div class="text-2xl font-bold {{ $palette['text'] }}">{{ $firstTryRate }}%</div>
-                            <div class="text-[10px] uppercase tracking-wide text-gray-600 dark:text-gray-400">Eficiencia</div>
+                            <div class="text-2xl font-bold {{ $palette['text'] }}">{{ $this->maxMarkable }}</div>
+                            <div class="text-[10px] uppercase tracking-wide text-gray-600 dark:text-gray-400">Cap del ciclo</div>
                         </div>
                     </div>
 
@@ -294,9 +331,11 @@ new #[Layout('layouts.app')] class extends Component
                 <div class="mb-4">
                     <div class="flex items-center justify-between text-xs mb-2">
                         <span class="font-semibold text-gray-700 dark:text-gray-300">
-                            {{ $this->knownCount }} / {{ $totalUnique }} sabidas
+                            Marcadas {{ $this->knownCount }} / {{ $this->maxMarkable }}
                             @if ($this->remaining > 0)
-                                · <span class="text-amber-600 dark:text-amber-400">faltan {{ $this->remaining }}</span>
+                                · <span class="text-amber-600 dark:text-amber-400">podés marcar {{ $this->remaining }} más</span>
+                            @else
+                                · <span class="text-emerald-600 dark:text-emerald-400">cupo del ciclo lleno</span>
                             @endif
                         </span>
                         <div class="flex items-center gap-3">
@@ -383,9 +422,10 @@ new #[Layout('layouts.app')] class extends Component
                 {{-- Action buttons --}}
                 @if ($revealed)
                     @php($canMark = $this->canMarkCurrent())
-                    @if (! $canMark)
+                    @php($reason = $this->capReason())
+                    @if ($reason !== '')
                         <p class="mt-4 text-xs text-center text-amber-700 dark:text-amber-400 font-medium">
-                            Fallaste esta palabra en otro ejercicio del ciclo — no podés marcarla como conocida hoy.
+                            {{ $reason }}
                         </p>
                     @endif
                     <div class="grid grid-cols-2 gap-3 mt-3">
