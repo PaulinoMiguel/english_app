@@ -56,10 +56,16 @@ new #[Layout('layouts.app')] class extends Component
             return;
         }
 
-        // Active words for this user. Only their texts become slots + bank items.
-        // Known words still appear in the story as plain text (context preserved).
-        $activeWords = $masterySvc->activeWordsForUnit(auth()->id(), $this->unit);
-        $activeTextSet = $activeWords->pluck('text')->map(fn ($t) => mb_strtolower($t))->all();
+        // Trust StoryWord.is_core for slot determination — story may contain
+        // inflected forms ("ran", "walked") that don't match unit word text exactly.
+        // Only exclude is_core tokens whose text matches a CURRENTLY KNOWN word;
+        // those render as plain text (context preserved, but no need to practice).
+        $knownIds = $masterySvc->knownWordIdsForUnit(auth()->id(), $this->unit);
+        $knownTextSet = $this->unit->words
+            ->whereIn('id', $knownIds)
+            ->pluck('text')
+            ->map(fn ($t) => mb_strtolower($t))
+            ->all();
         $this->textToWordId = $this->unit->words->mapWithKeys(fn ($w) => [mb_strtolower($w->text) => $w->id])->all();
 
         $tokens = [];
@@ -67,7 +73,8 @@ new #[Layout('layouts.app')] class extends Component
         $coreTexts = [];
         foreach ($story as $sw) {
             $tokens[] = $sw->text;
-            $isActiveCore = (bool) $sw->is_core && in_array(mb_strtolower($sw->text), $activeTextSet, true);
+            $isKnown = (bool) $sw->is_core && in_array(mb_strtolower($sw->text), $knownTextSet, true);
+            $isActiveCore = (bool) $sw->is_core && ! $isKnown;
             $flags[] = $isActiveCore;
             if ($isActiveCore) {
                 $coreTexts[] = $sw->text;

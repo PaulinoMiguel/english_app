@@ -192,8 +192,9 @@ new #[Layout('layouts.app')] class extends Component
         $w = $this->currentWord;
         if ($w) {
             $this->wrong++;
-            $this->queue[] = $w->id; // re-queue at the end so the user sees it again
         }
+        // No re-queue: each active word is shown exactly once per Read session.
+        // Re-queueing would loop forever for faulted words (can't be marked anyway).
         $this->advance();
     }
 
