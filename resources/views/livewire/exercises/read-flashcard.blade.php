@@ -88,7 +88,7 @@ new #[Layout('layouts.app')] class extends Component
      * Prevents a perfect-performance user from emptying the unit in one pass —
      * mastery should be earned across multiple successful cycles.
      */
-    public const MAX_MARKABLE_RATIO = 0.5;
+    public const MAX_MARKABLE_RATIO = 0.75;
 
     #[Computed]
     public function maxMarkable(): int
@@ -293,7 +293,7 @@ new #[Layout('layouts.app')] class extends Component
                     <p class="text-gray-600 dark:text-gray-400 mb-4">
                         Marcaste {{ $this->knownCount }} {{ $this->knownCount === 1 ? 'palabra' : 'palabras' }} como conocidas
                         @if ($this->maxMarkable < $totalUnique)
-                            (cap del 50% por ciclo)
+                            (cap del 75% por ciclo)
                         @endif. El resto vuelve a aparecer en el próximo ciclo.
                     </p>
 
