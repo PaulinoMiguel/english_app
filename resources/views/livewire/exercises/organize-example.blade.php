@@ -90,7 +90,23 @@ new #[Layout('layouts.app')] class extends Component
 
     private function tokenize(string $sentence): array
     {
-        return array_values(array_filter(preg_split('/\s+/u', trim($sentence)), fn ($t) => $t !== ''));
+        $words = array_values(array_filter(preg_split('/\s+/u', trim($sentence)), fn ($t) => $t !== ''));
+
+        // Greedy: agrupa palabras adyacentes mientras el total (con espacios) no supere 9 chars.
+        // Asi "the ia is" queda como un solo bloque en vez de tres botones diminutos.
+        $groups = [];
+        $i = 0;
+        $n = count($words);
+        while ($i < $n) {
+            $group = $words[$i];
+            while ($i + 1 < $n && mb_strlen($group) + 1 + mb_strlen($words[$i + 1]) <= 9) {
+                $i++;
+                $group .= ' ' . $words[$i];
+            }
+            $groups[] = $group;
+            $i++;
+        }
+        return $groups;
     }
 
     private function shuffleCurrent(): void
