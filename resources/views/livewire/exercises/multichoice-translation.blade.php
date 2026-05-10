@@ -83,10 +83,7 @@ new #[Layout('layouts.app')] class extends Component
     #[Computed]
     public function options(): Collection
     {
-        $word = $this->currentWord;
-        if (! $word) return collect();
-        $originalIndex = $this->unit->words->search(fn ($w) => $w->id === $word->id);
-        $ids = $this->optionsPerIndex[$originalIndex] ?? [];
+        $ids = $this->optionsPerIndex[$this->currentIndex] ?? [];
         $byId = $this->unit->words->keyBy('id');
         return collect($ids)->map(fn ($id) => $byId[$id] ?? null)->filter()->values();
     }
