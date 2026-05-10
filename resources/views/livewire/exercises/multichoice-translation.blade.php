@@ -33,12 +33,21 @@ new #[Layout('layouts.app')] class extends Component
     /** @var array<int> */
     public array $activeWordIds = [];
 
+    /** @var array<int> Filtered word IDs shuffled at mount; persists across requests */
+    public array $shuffledIds = [];
+
     public function mount(Unit $unit, WordMasteryService $masterySvc): void
     {
         $this->unit = $unit->load('book', 'words');
         $this->activeWordIds = $masterySvc->activeWordsForUnit(auth()->id(), $this->unit)->pluck('id')->all();
 
-        if ($this->words->count() < 2) {
+        $this->shuffledIds = $this->unit->words
+            ->filter(fn ($w) => ! empty($w->translation) && in_array($w->id, $this->activeWordIds, true))
+            ->pluck('id')
+            ->shuffle()
+            ->all();
+
+        if (count($this->shuffledIds) < 2) {
             $this->finished = true;
             return;
         }
@@ -50,9 +59,7 @@ new #[Layout('layouts.app')] class extends Component
     {
         // Distractors come from any unit word with translation; questions only from active.
         $allWords = $this->unit->words->filter(fn ($w) => ! empty($w->translation))->pluck('id')->all();
-        foreach ($this->unit->words as $i => $word) {
-            if (empty($word->translation)) continue;
-            if (! in_array($word->id, $this->activeWordIds, true)) continue;
+        foreach ($this->words as $i => $word) {
             $distractors = collect($allWords)->reject(fn ($id) => $id === $word->id)->shuffle()->take(3)->values()->all();
             $options = collect([$word->id, ...$distractors])->shuffle()->all();
             $this->optionsPerIndex[$i] = $options;
@@ -62,9 +69,9 @@ new #[Layout('layouts.app')] class extends Component
     #[Computed]
     public function words(): Collection
     {
-        return $this->unit->words
-            ->filter(fn ($w) => ! empty($w->translation) && in_array($w->id, $this->activeWordIds, true))
-            ->values();
+        if (empty($this->shuffledIds)) return collect();
+        $byId = $this->unit->words->keyBy('id');
+        return collect($this->shuffledIds)->map(fn ($id) => $byId->get($id))->filter()->values();
     }
 
     #[Computed]

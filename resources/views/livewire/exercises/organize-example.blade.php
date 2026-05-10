@@ -57,6 +57,7 @@ new #[Layout('layouts.app')] class extends Component
         }
 
         $this->queue = $this->words->pluck('id')->all();
+        shuffle($this->queue);
         $this->totalUnique = count($this->queue);
         $this->shuffleCurrent();
     }

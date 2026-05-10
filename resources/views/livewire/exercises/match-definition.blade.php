@@ -52,6 +52,7 @@ new #[Layout('layouts.app')] class extends Component
         }
 
         $this->allWordIds = $words->pluck('id')->all();
+        shuffle($this->allWordIds);
         $this->availableWords = $this->allWordIds;
         $defOrder = $this->allWordIds;
         shuffle($defOrder);
