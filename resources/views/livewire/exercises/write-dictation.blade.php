@@ -281,6 +281,7 @@ new #[Layout('layouts.app')] class extends Component
                                 <span x-text="playing ? 'Detener' : 'Reproducir audio'">Reproducir audio</span>
                             </button>
                             <audio wire:key="audio-{{ $word->id }}"
+                                   wire:ignore
                                    x-ref="audio"
                                    x-init="$nextTick(() => $el.play().catch(() => {}))"
                                    @play="playing = true"
