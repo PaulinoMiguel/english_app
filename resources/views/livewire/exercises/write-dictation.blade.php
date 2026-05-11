@@ -261,8 +261,8 @@ new #[Layout('layouts.app')] class extends Component
                 </div>
 
                 <div wire:key="write-{{ $word->id }}"
-                     x-data="{ playing: false, autoplayed: false }"
-                     x-init="$nextTick(() => { if (!autoplayed) { autoplayed = true; $refs.audio?.play().then(() => playing = true).catch(() => {}); } })"
+                     x-data="{ playing: false }"
+                     x-init="$nextTick(() => { $refs.audio?.play().catch(() => {}); })"
                      class="relative bg-white dark:bg-gray-800 rounded-2xl shadow-md border border-gray-200 dark:border-gray-700 overflow-hidden">
                     <div class="absolute top-0 left-0 right-0 h-1.5 {{ $palette['accent'] }}"></div>
                     <div class="p-6 sm:p-8">
@@ -271,7 +271,7 @@ new #[Layout('layouts.app')] class extends Component
                             <p class="text-xs uppercase tracking-wide font-semibold {{ $palette['text'] }} mb-3">Escucha y escribe la palabra</p>
 
                             <button type="button"
-                                    @click="if (playing) { $refs.audio.pause(); $refs.audio.currentTime = 0; playing = false; } else { $refs.audio.play(); playing = true; }"
+                                    @click="if (playing) { $refs.audio.pause(); $refs.audio.currentTime = 0; } else { $refs.audio.play(); }"
                                     class="inline-flex items-center gap-2 px-6 py-3 rounded-full {{ $palette['accent'] }} text-white font-semibold hover:opacity-90 active:scale-95 transition shadow-md">
                                 <svg x-show="!playing" xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" viewBox="0 0 20 20" fill="currentColor">
                                     <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z" clip-rule="evenodd" />
@@ -281,7 +281,12 @@ new #[Layout('layouts.app')] class extends Component
                                 </svg>
                                 <span x-text="playing ? 'Detener' : 'Reproducir audio'">Reproducir audio</span>
                             </button>
-                            <audio x-ref="audio" @ended="playing = false" preload="auto" src="{{ config('app.audio_base_url') }}/{{ $word->audio_file }}"></audio>
+                            <audio x-ref="audio"
+                                   @play="playing = true"
+                                   @pause="playing = false"
+                                   @ended="playing = false"
+                                   preload="auto"
+                                   src="{{ config('app.audio_base_url') }}/{{ $word->audio_file }}"></audio>
 
                             <p class="text-xs text-gray-500 dark:text-gray-400 mt-3">Puedes reproducirlo cuantas veces quieras.</p>
                         </div>
